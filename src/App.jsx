@@ -30,7 +30,7 @@ export default function App() {
   });
   const [singleResult, setSingleResult] = useState(null);
 
-  const handleAnalyze = async (uploadedFile = file) => {
+const handleAnalyze = async (uploadedFile = file) => {
     if (!uploadedFile) return;
     setLoading(true);
     setError("");
@@ -41,14 +41,20 @@ export default function App() {
       formData.append("cost_false_alarm", costFalseAlarm);
 
       const res = await fetch("/api/analyze-csv", { method: "POST", body: formData });
-      const data = await res.json();
+      const text = await res.text();
+      if (!res.ok) {
+        setError(`Server Error (${res.status}): ${text.slice(0, 200)}`);
+        setLoading(false);
+        return;
+      }
+      const data = JSON.parse(text);
       if (data.error) {
         setError(data.error);
       } else {
         setAnalysis(data);
       }
     } catch (err) {
-      setError("Failed to connect to analysis server.");
+      setError(`Network Error: ${err.message}`);
     }
     setLoading(false);
   };
