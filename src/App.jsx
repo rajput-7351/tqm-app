@@ -35,8 +35,31 @@ const handleAnalyze = async (uploadedFile = file) => {
     setLoading(true);
     setError("");
     try {
+      let fileToSend = uploadedFile;
+
+      // Vercel serverless functions have a hard 4.5 MB payload limit.
+      // If the CSV is larger than 3.8 MB, slice the top ~25,000 rows in-browser.
+      const MAX_BYTES = 3.8 * 1024 * 1024;
+      if (uploadedFile.size > MAX_BYTES) {
+        const rawText = await uploadedFile.text();
+        const lines = rawText.split(/\r?\n/);
+        const header = lines[0];
+        const sampledLines = [header];
+        let currentBytes = header.length;
+
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          currentBytes += lines[i].length + 1;
+          if (currentBytes > MAX_BYTES) break;
+          sampledLines.push(lines[i]);
+        }
+
+        const trimmedCsv = sampledLines.join("\n");
+        fileToSend = new File([trimmedCsv], uploadedFile.name, { type: "text/csv" });
+      }
+
       const formData = new FormData();
-      formData.append("file", uploadedFile);
+      formData.append("file", fileToSend);
       formData.append("cost_escape", costEscape);
       formData.append("cost_false_alarm", costFalseAlarm);
 
